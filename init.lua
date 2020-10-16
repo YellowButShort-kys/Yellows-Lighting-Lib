@@ -35,6 +35,7 @@ function yellows_rl.CreateCircleLight(x, y, radius)
 
     local source = {}
     setmetatable(source, {__index = circle_light})
+    source.id = #light_sources
     source.x = x
     source.y = y
     source.radius = radius
@@ -55,6 +56,7 @@ function yellows_rl.CreateConeLight(x, y, length, base, angle)
 
     local source = {}
     setmetatable(source, {__index = cone_light})
+    source.id = #light_sources
     source.x = x
     source.y = y
     source.length = length
@@ -69,6 +71,14 @@ function yellows_rl.CreateConeLight(x, y, length, base, angle)
     return source
 end
 
+function yellows_rl.Remove(id, type)
+    if type then
+        table.remove(light_sources, id)
+    else
+        table.remove(blocking_objects, id)
+    end
+end
+
 function yellows_rl.CreateRectangonalBlocker(x, y, w, h)
     local blocker = shapes.newPolygonShape(x, y, x+w, y, x+w, y+h, x, y+h)
     blocker.polygons = {{x, y}, {x+w, y}, {x+w, y+h}, {x, y+h}}
@@ -78,6 +88,14 @@ function yellows_rl.CreateRectangonalBlocker(x, y, w, h)
         {{x+w, y+h}, {x, y+h}},
         {{x, y+h}, {x, y}}
     }
+    blocker.id = #blocking_objects
+
+    function blocker:Remove()
+        yellows_rl.Remove(self.id, true)
+        self = nil
+        rl.UpdateIntersection()
+    end
+
     table.insert(blocking_objects, blocker)
     return blocker
 end

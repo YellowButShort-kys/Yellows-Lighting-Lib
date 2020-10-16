@@ -68,4 +68,10 @@ function light_source:Draw()
     love.graphics.setStencilTest()
 end
 
+function light_source:Remove()
+    rl.Remove(self.id)
+    self = nil
+    rl.UpdateIntersection()
+end
+
 return light_source
