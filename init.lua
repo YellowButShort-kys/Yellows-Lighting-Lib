@@ -1,5 +1,6 @@
 local yellows_rl = {}
 local shapes = require 'Yellows_raylight.HC.shapes'
+local poly = require "Yellows_raylight.HC.polygon"
 local blocking_objects = {}
 local light_sources = {}
 local circle_light
@@ -87,7 +88,7 @@ function yellows_rl.Remove(id, type)
 end
 
 function yellows_rl.CreateRectangonalBlocker(x, y, w, h)
-    local blocker = shapes.newPolygonShape(x, y, x+w, y, x+w, y+h, x, y+h)
+    local blocker = poly(x, y, x+w, y, x+w, y+h, x, y+h)
     blocker.polygons = {{x, y}, {x+w, y}, {x+w, y+h}, {x, y+h}}
     blocker.lines = {
         {{x,y}, {x+w, y}},
@@ -110,7 +111,7 @@ function yellows_rl.CreateRectangonalBlocker(x, y, w, h)
     return blocker
 end
 
---[[function yellows_rl.CreatePolygonalBlocker(x1, y1, x2, y2, x3, y3, ...)
+function yellows_rl.CreatePolygonalBlocker(x1, y1, x2, y2, x3, y3, ...)
     assert(type(x1)=="number", "Arg should be a number")
     assert(type(y1)=="number", "Arg should be a number")
     assert(type(x2)=="number", "Arg should be a number")
@@ -128,7 +129,28 @@ end
     end 
 
 
-    local blocker = shapes.newPolygonShape(x1, y1, x2, y2, x3, y3, ...)
+    local blocker = poly(x1, y1, x2, y2, x3, y3, ...)
+
+
+    if not blocker:isConvex() then
+        blocker.toconvex = true
+        blocker.shapes = blocker:splitConvex()
+        blocker.children = {}
+        gay = {}
+        for _, var in ipairs(blocker.shapes) do
+            table.insert(blocker.children, yellows_rl.CreatePolygonalBlocker(var:unpack()))
+        end
+        function blocker:Remove()
+            for _, var in ipairs(self.children) do
+                var:Remove(var.id, true)
+            end
+            self = nil 
+            update[1] = true
+            --rl.UpdateIntersection()
+        end
+        return
+    end
+
     blocker.polygons = polygons
 
     local lines = {}
@@ -151,7 +173,7 @@ end
 
     table.insert(blocking_objects, blocker)
     return blocker
-end]]
+end
 
 function yellows_rl.Update()
     if not update[1] then return end
