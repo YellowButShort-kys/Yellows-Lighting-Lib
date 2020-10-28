@@ -6,13 +6,13 @@ function light_source:SetX(x)
     local x_diff = x - self.x 
     self.x = x
     self.col:move(x_diff, 0)
-    rl.UpdateIntersection()
+    self.shouldupdate[1] = true
 end
 function light_source:SetY(y)
     local y_diff = y - self.y
     self.y = y
     self.col:move(0, y_diff)
-    rl.UpdateIntersection()
+    self.shouldupdate[1] = true
 end
 function light_source:SetPos(x, y)
     local x_diff = x - self.x 
@@ -20,7 +20,7 @@ function light_source:SetPos(x, y)
     self.x = x
     self.y = y
     self.col:move(x_diff, y_diff)
-    rl.UpdateIntersection()
+    self.shouldupdate[1] = true
 end
 
 function light_source:GetX()
@@ -36,7 +36,7 @@ end
 function light_source:SetBase(base)
     self.base = base
     self.con = shapes.newPolygonShape(self.x, self.y, self.x - base/2, self.y - self.length, self.x + base/2, self.y - self.length)
-    rl.UpdateIntersection()
+    self.shouldupdate[1] = true
 end
 function light_source:GetBase()
     return self.base
@@ -45,7 +45,7 @@ end
 function light_source:SetLength(length)
     self.length = length
     self.con = shapes.newPolygonShape(self.x, self.y, self.x - self.base/2, self.y - length, self.x + self.base/2, self.y - length)
-    rl.UpdateIntersection()
+    self.shouldupdate[1] = true
 end
 function light_source:GetLength()
     return self.length
@@ -53,6 +53,7 @@ end
 
 function light_source:SetAngle(angle)
     self.angle = angle
+    self.shouldupdate[1] = true
     self.col:setRotation(angle * math.pi/180, self.x, self.y)
     
 end
@@ -99,7 +100,7 @@ end
 function light_source:Remove()
     rl.Remove(self.id)
     self = nil
-    rl.UpdateIntersection()
+    self.shouldupdate[1] = true
 end
 
 return light_source

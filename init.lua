@@ -4,6 +4,8 @@ local blocking_objects = {}
 local light_sources = {}
 local circle_light
 local cone_light
+local update = {true}
+local start = true
 
 local function ccw (a,b,c) 
     --if a looks at b, is c on the left or on the right? (points)
@@ -16,7 +18,7 @@ local function lineLineCollision(lineA,lineB)
     local B = lineA[2]
     local C = lineB[1]
     local D = lineB[2]
-    if ((ccw(A,B,C) * ccw (A,B,D)) < 0) and ((ccw(C,D,A) * ccw(C,D,B)) < 0) then
+    if ((ccw(A,B,C) * ccw(A,B,D)) < 0) and ((ccw(C,D,A) * ccw(C,D,B)) < 0) then
         return true
     else
         return false
@@ -26,6 +28,7 @@ end
 function yellows_rl.Init()
     circle_light = require "Yellows_raylight.lights.light_round"
     cone_light = require "Yellows_raylight.lights.light_cone"
+    update[1] = true
 end
 
 function yellows_rl.CreateCircleLight(x, y, radius)
@@ -40,9 +43,12 @@ function yellows_rl.CreateCircleLight(x, y, radius)
     source.y = y
     source.radius = radius
     source.col = shapes.newCircleShape(x, y, radius)
+
+    source.shouldupdate = update
+    update[1] = true
     table.insert(light_sources, source)
 
-    yellows_rl.UpdateIntersection()
+    --yellows_rl.UpdateIntersection()
 
     return source
 end
@@ -58,15 +64,16 @@ function yellows_rl.CreateConeLight(x, y, length, base, angle)
     setmetatable(source, {__index = cone_light})
     source.id = #light_sources
     source.x = x
-    source.y = y
+    source.y = y    
     source.length = length
     source.base = base
     source.angle = angle or 0 * math.pi/180
     source.col = shapes.newPolygonShape(x, y, x - base/2, y - length, x + base/2, y - length)
     source.col:setRotation(angle or 0 * math.pi/180, x, y)
-    table.insert(light_sources, source)
 
-    yellows_rl.UpdateIntersection()
+    source.shouldupdate = update
+    update[1] = true
+    table.insert(light_sources, source)
 
     return source
 end
@@ -90,17 +97,65 @@ function yellows_rl.CreateRectangonalBlocker(x, y, w, h)
     }
     blocker.id = #blocking_objects
 
+    update[1] = true
+
     function blocker:Remove()
         yellows_rl.Remove(self.id, true)
-        self = nil
-        rl.UpdateIntersection()
+        self = nil 
+        update[1] = true
+        --rl.UpdateIntersection()
     end
 
     table.insert(blocking_objects, blocker)
     return blocker
 end
 
-function yellows_rl.UpdateIntersection()
+--[[function yellows_rl.CreatePolygonalBlocker(x1, y1, x2, y2, x3, y3, ...)
+    assert(type(x1)=="number", "Arg should be a number")
+    assert(type(y1)=="number", "Arg should be a number")
+    assert(type(x2)=="number", "Arg should be a number")
+    assert(type(y2)=="number", "Arg should be a number")
+    assert(type(x3)=="number", "Arg should be a number")
+    assert(type(y3)=="number", "Arg should be a number")
+    local toconvert = {...}
+    for _, var in ipairs(toconvert) do
+        assert(type(var)=="number", "Arg should be a number")
+    end
+
+    local polygons = {{x1, y1}, {x2, y2}, {x3, y3}}
+    for i = 1, #toconvert, 2 do
+        table.insert(polygons, {toconvert[i], toconvert[i+1]})
+    end 
+
+
+    local blocker = shapes.newPolygonShape(x1, y1, x2, y2, x3, y3, ...)
+    blocker.polygons = polygons
+
+    local lines = {}
+    for i = 1, #polygons-1 do
+        table.insert(lines, {polygons[i], polygons[i+1]})
+    end
+    table.insert(lines, {polygons[#polygons], polygons[1]})
+
+    blocker.lines = lines
+    blocker.id = #blocking_objects
+
+    update[1] = true
+
+    function blocker:Remove()
+        yellows_rl.Remove(self.id, true)
+        self = nil 
+        update[1] = true
+        --rl.UpdateIntersection()
+    end
+
+    table.insert(blocking_objects, blocker)
+    return blocker
+end]]
+
+function yellows_rl.Update()
+    if not update[1] then return end
+    update[1] = false
     for _, source in ipairs(light_sources) do
         local returned = {}
         local x, y, radius = source:GetX(), source:GetY()
@@ -115,82 +170,87 @@ function yellows_rl.UpdateIntersection()
                 local prefinal = {}
                 local PointOrEnd = true
                 local nolinecurrent = {}
+
+                --local skip1, skip2 = blocker:support(x, y)
+
                 for _, polygons in ipairs(blocker.polygons) do
                     local x1, y1 = unpack(polygons)
                     local switch = true
                     local current = {}
 
-                    if x == x1 then
-                        local nx1, nx2 = x1 - 1, x1 + 1
-                        local len = math.sqrt(math.pow(x - nx1, 2) + math.pow(y - y1, 2))
-                        local cx = nx1 + (nx1 - x) / len * 5
-                        local cy = y1 + (y1 - y) / len * 5
-                        if blocker:contains(cx, cy) then
-                            table.insert(nolinecurrent, x1)
-                            table.insert(nolinecurrent, y1)
-                            switch = false
-                        end
+                    --if not (x1 == skip1 and y1 == skip2) then 
+                        if x == x1 then
+                            local nx1, nx2 = x1 - 1, x1 + 1
+                            local len = math.sqrt(math.pow(x - nx1, 2) + math.pow(y - y1, 2))
+                            local cx = nx1 + (nx1 - x) / len * 1
+                            local cy = y1 + (y1 - y) / len * 1
+                            if blocker:contains(cx, cy) then
+                                table.insert(nolinecurrent, x1)
+                                table.insert(nolinecurrent, y1)
+                                switch = false
+                            end
 
-                        len = math.sqrt(math.pow(x - nx2, 2) + math.pow(y - y1, 2))
-                        cx = nx2 + (nx2 - x) / len * 5
-                        cy = y1 + (y1 - y) / len * 5
-                        if blocker:contains(cx, cy) then
-                            table.insert(nolinecurrent, x1)
-                            table.insert(nolinecurrent, y1)
-                            switch = false
-                        end
-                    elseif y == y1 then
-                        local ny1, ny2 = y1 - 1, y1 + 1
-                        local len = math.sqrt(math.pow(x - x1, 2) + math.pow(y - ny1, 2))
-                        local cx = x1 + (x1 - x) / len * 5
-                        local cy = ny1 + (ny1 - y) / len * 5
-                        if blocker:contains(cx, cy) then
-                            table.insert(nolinecurrent, x1)
-                            table.insert(nolinecurrent, y1)
-                            switch = false
-                        end
+                            len = math.sqrt(math.pow(x - nx2, 2) + math.pow(y - y1, 2))
+                            cx = nx2 + (nx2 - x) / len * 1
+                            cy = y1 + (y1 - y) / len * 1
+                            if blocker:contains(cx, cy) then
+                                table.insert(nolinecurrent, x1)
+                                table.insert(nolinecurrent, y1)
+                                switch = false
+                            end
+                        elseif y == y1 then
+                            local ny1, ny2 = y1 - 1, y1 + 1
+                            local len = math.sqrt(math.pow(x - x1, 2) + math.pow(y - ny1, 2))
+                            local cx = x1 + (x1 - x) / len * 1
+                            local cy = ny1 + (ny1 - y) / len * 1
+                            if blocker:contains(cx, cy) then
+                                table.insert(nolinecurrent, x1)
+                                table.insert(nolinecurrent, y1)
+                                switch = false
+                            end
 
-                        len = math.sqrt(math.pow(x - x1, 2) + math.pow(y - ny2, 2))
-                        cx = x1 + (x1 - x) / len * 5
-                        cy = ny2 + (ny2 - y) / len * 5
-                        if blocker:contains(cx, cy) then
-                            table.insert(nolinecurrent, x1)
-                            table.insert(nolinecurrent, y1)
-                            switch = false
-                        end
-                    else
-                        local len = math.sqrt(math.pow(x - x1, 2) + math.pow(y - y1, 2))
-                        local cx = x1 + (x1 - x) / len * 5
-                        local cy = y1 + (y1 - y) / len * 5
-                        if blocker:contains(cx, cy) then
-                            table.insert(nolinecurrent, x1)
-                            table.insert(nolinecurrent, y1)
-                            switch = false
-                        end
-                    end
-
-                    if switch then 
-                        for _, line in ipairs(blocker.lines) do
-                            if lineLineCollision({{x,y}, polygons}, line) then
+                            len = math.sqrt(math.pow(x - x1, 2) + math.pow(y - ny2, 2))
+                            cx = x1 + (x1 - x) / len * 1
+                            cy = ny2 + (ny2 - y) / len * 1
+                            if blocker:contains(cx, cy) then
+                                table.insert(nolinecurrent, x1)
+                                table.insert(nolinecurrent, y1)
+                                switch = false
+                            end
+                        else
+                            local len = math.sqrt(math.pow(x - x1, 2) + math.pow(y - y1, 2))
+                            local cx = x1 + (x1 - x) / len * 1
+                            local cy = y1 + (y1 - y) / len * 1
+                            if blocker:contains(cx, cy) then
+                                table.insert(nolinecurrent, x1)
+                                table.insert(nolinecurrent, y1)
                                 switch = false
                             end
                         end
-                    end
 
-                    if switch then
-                        local angle = -math.atan2(y1 - y, x1 - x) + math.pi/2
-                        local endx, endy = radius * math.sin(angle) + x, radius * math.cos(angle) + y
-                        len = math.sqrt(math.pow(x - endx, 2) + math.pow(y - endy, 2))
-                        endx = endx + (endx - x) / len * len * len * len
-                        endy = endy + (endy - y) / len * len * len * len
+                        if switch then 
+                            for _, line in ipairs(blocker.lines) do
+                                if lineLineCollision({{x,y}, polygons}, line) then
+                                    switch = false 
+                                end
+                            end
+                        end
 
-                        current[1] = x1
-                        current[2] = y1
-                        current[3] = endx
-                        current[4] = endy
+                        if switch then
+                            local angle = -math.atan2(y1 - y, x1 - x) + math.pi/2
+                            local endx, endy = radius * math.sin(angle) + x, radius * math.cos(angle) + y
+                            local len = math.sqrt(math.pow(x - endx, 2) + math.pow(y - endy, 2))
+                            endx = endx + (endx - x) / len * len * len * len
+                            endy = endy + (endy - y) / len * len * len * len
 
-                        table.insert(prefinal, current)
-                    end
+                            current[1] = x1
+                            current[2] = y1
+                            current[3] = endx
+                            current[4] = endy
+
+                            table.insert(prefinal, current)
+                        end
+                    --end
                 end
 
                 local final = {}
@@ -215,16 +275,21 @@ function yellows_rl.UpdateIntersection()
             --end
         end
 
-        for _, var in ipairs(returned) do
+        --[[for _, var in ipairs(returned) do
             for i = 1, #var-2, 2 do  --in case if points are duplicated
                 if var[i] == var[i+2] and var[i+1] == var[i+3] then
                     table.remove(var, i)
                     table.remove(var, i)
                 end
             end
-        end
+        end]]
 
         source:CalcDrawing(returned)
+
+        if start then 
+            update[1] = true
+            start = nil
+        end
     end
 end
 
@@ -233,5 +298,7 @@ function yellows_rl.Draw()
         source:Draw()
     end
 end
+
+
 
 return yellows_rl

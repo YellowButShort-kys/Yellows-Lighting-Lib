@@ -5,18 +5,18 @@ local shapes = require 'Yellows_raylight.HC.shapes'
 function light_source:SetX(x)
    self.x = x
    self.col:moveTo(x, self.y)
-   rl.UpdateIntersection()
+   self.shouldupdate[1] = true
 end
 function light_source:SetY(y)
     self.y = y
     self.col:moveTo(self.x, y)
-    rl.UpdateIntersection()
+    self.shouldupdate[1] = true
 end
 function light_source:SetPos(x, y)
     self.x = x
     self.y = y
     self.col:moveTo(x, y)
-    rl.UpdateIntersection()
+    self.shouldupdate[1] = true
 end
 
 function light_source:GetX()
@@ -31,7 +31,7 @@ end
 
 function light_source:SetRadius(radius)
     self.radius = radius
-    rl.UpdateIntersection()
+    self.shouldupdate[1] = true
 end
 function light_source:GetRadius()
     return self.radius
@@ -71,7 +71,7 @@ end
 function light_source:Remove()
     rl.Remove(self.id)
     self = nil
-    rl.UpdateIntersection()
+    self.shouldupdate[1] = true
 end
 
 return light_source
