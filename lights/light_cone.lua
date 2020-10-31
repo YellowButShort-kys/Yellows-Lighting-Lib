@@ -1,6 +1,5 @@
-local light_source = {texture = love.graphics.newImage("Yellows_raylight/textures/round.png")}
-local rl = require "Yellows_raylight"
-local shapes = require 'Yellows_raylight.HC.shapes'
+
+local light_source = {}
 
 function light_source:SetX(x)
     local x_diff = x - self.x 
@@ -35,7 +34,7 @@ end
 
 function light_source:SetBase(base)
     self.base = base
-    self.con = shapes.newPolygonShape(self.x, self.y, self.x - base/2, self.y - self.length, self.x + base/2, self.y - self.length)
+    self.con = self.poly(self.x, self.y, self.x - base/2, self.y - self.length, self.x + base/2, self.y - self.length)
     self.shouldupdate[1] = true
 end
 function light_source:GetBase()
@@ -44,7 +43,7 @@ end
 
 function light_source:SetLength(length)
     self.length = length
-    self.con = shapes.newPolygonShape(self.x, self.y, self.x - self.base/2, self.y - length, self.x + self.base/2, self.y - length)
+    self.con = self.poly(self.x, self.y, self.x - self.base/2, self.y - length, self.x + self.base/2, self.y - length)
     self.shouldupdate[1] = true
 end
 function light_source:GetLength()
@@ -86,21 +85,24 @@ function light_source:CalcDrawing(polygons)
 end
 
 function light_source:Draw()
-    love.graphics.stencil(self.StencilFunc2, "replace", 1)
-    love.graphics.stencil(self.StencilFunc1, "replace", 0, true)
-    love.graphics.setStencilTest("equal", 1)
+    if self.StencilFunc1 and self.StencilFunc2 then
+        love.graphics.push()
+        love.graphics.stencil(self.StencilFunc2, "replace", 1)
+        love.graphics.stencil(self.StencilFunc1, "replace", 0, true)
+        love.graphics.setStencilTest("equal", 1)
 
-    love.graphics.setColor(self.color or {1, 1, 1})
-    love.graphics.draw(self.texture, self.x-self.length, self.y-self.length, 0, self.length*2/self.texture:getWidth())
-    love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.setColor(self.color or {1, 1, 1})
+        love.graphics.draw(self.texture, self.x-self.length, self.y-self.length, 0, self.length*2/self.texture:getWidth())
 
-    love.graphics.setStencilTest()
+        love.graphics.setStencilTest()
+        love.graphics.pop()
+    end
 end
 
 function light_source:Remove()
-    rl.Remove(self.id)
-    self = nil
     self.shouldupdate[1] = true
+    self.rl.Remove(self.id)
+    self = nil
 end
 
 return light_source

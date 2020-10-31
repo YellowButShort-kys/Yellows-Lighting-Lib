@@ -1,4 +1,3 @@
-
 local light_source = {}
 
 function light_source:SetX(x)
@@ -63,8 +62,7 @@ function light_source:Draw()
         love.graphics.setStencilTest("less", 1)
 
         love.graphics.setColor(self.color or {1, 1, 1})
-            love.graphics.draw(self.texture, self.x-self.radius, self.y-self.radius, self.angle, self.radius*2/self.texture:getWidth())
-
+        love.graphics.draw(self.texture, self.x-self.radius, self.y-self.radius, self.angle, self.radius*2/self.texture:getWidth())
         love.graphics.setStencilTest()
         love.graphics.pop()
     end

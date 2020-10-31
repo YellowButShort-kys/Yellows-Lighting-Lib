@@ -1,9 +1,12 @@
+local relativepath = ...
 local yellows_rl = {}
-local shapes = require 'Yellows_raylight.HC.shapes'
-local poly = require "Yellows_raylight.HC.polygon"
+require (relativepath..".HC")
+local poly = require (relativepath..".HC.polygon")
+local shapes = require (relativepath..".HC.shapes")
 local blocking_objects = {}
 local light_sources = {}
 local circle_light
+local circle_light_soft
 local cone_light
 local update = {true}
 local start = true
@@ -27,8 +30,16 @@ local function lineLineCollision(lineA,lineB)
 end
   
 function yellows_rl.Init()
-    circle_light = require "Yellows_raylight.lights.light_round"
-    cone_light = require "Yellows_raylight.lights.light_cone"
+    circle_light = require (relativepath..".lights.light_round")
+        circle_light.texture = love.graphics.newImage(relativepath.."/textures/round.png")
+        circle_light.rl = yellows_rl
+    circle_light_soft = require (relativepath..".lights.light_round_soft")
+        circle_light_soft.texture = love.graphics.newImage(relativepath.."/textures/round.png")
+        circle_light_soft.rl = yellows_rl
+    cone_light = require (relativepath..".lights.light_cone")
+        cone_light.texture = love.graphics.newImage(relativepath.."/textures/round.png")
+        cone_light.rl = yellows_rl
+        cone_light.poly = poly
     update[1] = true
 end
 
@@ -36,8 +47,17 @@ function yellows_rl.CreateCircleLight(x, y, radius)
     assert(type(x)=="number", "X should be a number")
     assert(type(y)=="number", "Y should be a number")
     assert(type(radius)=="number", "Radius should be a number")
+    local offset = radius/10
+
+    
+
 
     local source = {}
+    source.children = {}
+    for i = 0, 1, 0.125 do
+        table.insert(source.children, yellows_rl.CreateSoftCircleLight(x + math.cos(i*math.pi*2)*offset, y + math.sin(i*math.pi*2)*offset, radius, 1))
+    end
+
     setmetatable(source, {__index = circle_light})
     source.id = #light_sources
     source.x = x
@@ -136,7 +156,6 @@ function yellows_rl.CreatePolygonalBlocker(x1, y1, x2, y2, x3, y3, ...)
         blocker.toconvex = true
         blocker.shapes = blocker:splitConvex()
         blocker.children = {}
-        gay = {}
         for _, var in ipairs(blocker.shapes) do
             table.insert(blocker.children, yellows_rl.CreatePolygonalBlocker(var:unpack()))
         end
@@ -186,131 +205,140 @@ function yellows_rl.Update()
         elseif source.GetLength then
             radius = source:GetLength()
         end
-        
+        local check = true
+
         for _, blocker in ipairs(blocking_objects) do
-            --if source.col:collidesWith(blocker) then
-                local prefinal = {}
-                local PointOrEnd = true
-                local nolinecurrent = {}
+            if blocker:contains(x, y) then
+                check = false
+                break
+            end
+        end
+        if check then
+            for _, blocker in ipairs(blocking_objects) do
+                --if source.col:collidesWith(blocker) then
+                
+                    local prefinal = {}
+                    local PointOrEnd = true
+                    local nolinecurrent = {}
 
-                --local skip1, skip2 = blocker:support(x, y)
+                    --local skip1, skip2 = blocker:support(x, y)
 
-                for _, polygons in ipairs(blocker.polygons) do
-                    local x1, y1 = unpack(polygons)
-                    local switch = true
-                    local current = {}
+                    for _, polygons in ipairs(blocker.polygons) do
+                        local x1, y1 = unpack(polygons)
+                        local switch = true
+                        local current = {}
 
-                    --if not (x1 == skip1 and y1 == skip2) then 
-                        if x == x1 then
-                            local nx1, nx2 = x1 - 1, x1 + 1
-                            local len = math.sqrt(math.pow(x - nx1, 2) + math.pow(y - y1, 2))
-                            local cx = nx1 + (nx1 - x) / len * 1
-                            local cy = y1 + (y1 - y) / len * 1
-                            if blocker:contains(cx, cy) then
-                                table.insert(nolinecurrent, x1)
-                                table.insert(nolinecurrent, y1)
-                                switch = false
-                            end
+                        --if not (x1 == skip1 and y1 == skip2) then 
+                            if x == x1 then
+                                local nx1, nx2 = x1 - 1, x1 + 1
+                                local len = math.sqrt(math.pow(x - nx1, 2) + math.pow(y - y1, 2))
+                                local cx = nx1 + (nx1 - x) / len * 1
+                                local cy = y1 + (y1 - y) / len * 1
+                                if blocker:contains(cx, cy) then
+                                    table.insert(nolinecurrent, x1)
+                                    table.insert(nolinecurrent, y1)
+                                    switch = false
+                                end
 
-                            len = math.sqrt(math.pow(x - nx2, 2) + math.pow(y - y1, 2))
-                            cx = nx2 + (nx2 - x) / len * 1
-                            cy = y1 + (y1 - y) / len * 1
-                            if blocker:contains(cx, cy) then
-                                table.insert(nolinecurrent, x1)
-                                table.insert(nolinecurrent, y1)
-                                switch = false
-                            end
-                        elseif y == y1 then
-                            local ny1, ny2 = y1 - 1, y1 + 1
-                            local len = math.sqrt(math.pow(x - x1, 2) + math.pow(y - ny1, 2))
-                            local cx = x1 + (x1 - x) / len * 1
-                            local cy = ny1 + (ny1 - y) / len * 1
-                            if blocker:contains(cx, cy) then
-                                table.insert(nolinecurrent, x1)
-                                table.insert(nolinecurrent, y1)
-                                switch = false
-                            end
+                                len = math.sqrt(math.pow(x - nx2, 2) + math.pow(y - y1, 2))
+                                cx = nx2 + (nx2 - x) / len * 1
+                                cy = y1 + (y1 - y) / len * 1
+                                if blocker:contains(cx, cy) then
+                                    table.insert(nolinecurrent, x1)
+                                    table.insert(nolinecurrent, y1)
+                                    switch = false
+                                end
+                            elseif y == y1 then
+                                local ny1, ny2 = y1 - 1, y1 + 1
+                                local len = math.sqrt(math.pow(x - x1, 2) + math.pow(y - ny1, 2))
+                                local cx = x1 + (x1 - x) / len * 1
+                                local cy = ny1 + (ny1 - y) / len * 1
+                                if blocker:contains(cx, cy) then
+                                    table.insert(nolinecurrent, x1)
+                                    table.insert(nolinecurrent, y1)
+                                    switch = false
+                                end
 
-                            len = math.sqrt(math.pow(x - x1, 2) + math.pow(y - ny2, 2))
-                            cx = x1 + (x1 - x) / len * 1
-                            cy = ny2 + (ny2 - y) / len * 1
-                            if blocker:contains(cx, cy) then
-                                table.insert(nolinecurrent, x1)
-                                table.insert(nolinecurrent, y1)
-                                switch = false
-                            end
-                        else
-                            local len = math.sqrt(math.pow(x - x1, 2) + math.pow(y - y1, 2))
-                            local cx = x1 + (x1 - x) / len * 1
-                            local cy = y1 + (y1 - y) / len * 1
-                            if blocker:contains(cx, cy) then
-                                table.insert(nolinecurrent, x1)
-                                table.insert(nolinecurrent, y1)
-                                switch = false
-                            end
-                        end
-
-                        if switch then 
-                            for _, line in ipairs(blocker.lines) do
-                                if lineLineCollision({{x,y}, polygons}, line) then
-                                    switch = false 
+                                len = math.sqrt(math.pow(x - x1, 2) + math.pow(y - ny2, 2))
+                                cx = x1 + (x1 - x) / len * 1
+                                cy = ny2 + (ny2 - y) / len * 1
+                                if blocker:contains(cx, cy) then
+                                    table.insert(nolinecurrent, x1)
+                                    table.insert(nolinecurrent, y1)
+                                    switch = false
+                                end
+                            else
+                                local len = math.sqrt(math.pow(x - x1, 2) + math.pow(y - y1, 2))
+                                local cx = x1 + (x1 - x) / len * 1
+                                local cy = y1 + (y1 - y) / len * 1
+                                if blocker:contains(cx, cy) then
+                                    table.insert(nolinecurrent, x1)
+                                    table.insert(nolinecurrent, y1)
+                                    switch = false
                                 end
                             end
+
+                            if switch then 
+                                for _, line in ipairs(blocker.lines) do
+                                    if lineLineCollision({{x,y}, polygons}, line) then
+                                        switch = false 
+                                    end
+                                end
+                            end
+
+                            if switch then
+                                local angle = -math.atan2(y1 - y, x1 - x) + math.pi/2
+                                local endx, endy = radius * math.sin(angle) + x, radius * math.cos(angle) + y
+                                local len = math.sqrt(math.pow(x - endx, 2) + math.pow(y - endy, 2))
+                                endx = endx + (endx - x) / len * len * len * len
+                                endy = endy + (endy - y) / len * len * len * len
+
+                                current[1] = x1
+                                current[2] = y1
+                                current[3] = endx
+                                current[4] = endy
+
+                                table.insert(prefinal, current)
+                            end
+                        --end
+                    end
+
+                    local final = {}
+                    table.insert(final, nolinecurrent[1])
+                    table.insert(final, nolinecurrent[2])
+                    for _, var in ipairs(prefinal) do
+                        if PointOrEnd then --looks like shit but who cares
+                            table.insert(final, var[1])
+                            table.insert(final, var[2])
+                            table.insert(final, var[3])
+                            table.insert(final, var[4])
+                            PointOrEnd = false
+                        else 
+                            table.insert(final, var[3])
+                            table.insert(final, var[4])
+                            table.insert(final, var[1])
+                            table.insert(final, var[2])
+                            PointOrEnd = true
                         end
+                    end
+                    table.insert(returned, final)
+            end
 
-                        if switch then
-                            local angle = -math.atan2(y1 - y, x1 - x) + math.pi/2
-                            local endx, endy = radius * math.sin(angle) + x, radius * math.cos(angle) + y
-                            local len = math.sqrt(math.pow(x - endx, 2) + math.pow(y - endy, 2))
-                            endx = endx + (endx - x) / len * len * len * len
-                            endy = endy + (endy - y) / len * len * len * len
-
-                            current[1] = x1
-                            current[2] = y1
-                            current[3] = endx
-                            current[4] = endy
-
-                            table.insert(prefinal, current)
-                        end
-                    --end
-                end
-
-                local final = {}
-                table.insert(final, nolinecurrent[1])
-                table.insert(final, nolinecurrent[2])
-                for _, var in ipairs(prefinal) do
-                    if PointOrEnd then --looks like shit but who cares
-                        table.insert(final, var[1])
-                        table.insert(final, var[2])
-                        table.insert(final, var[3])
-                        table.insert(final, var[4])
-                        PointOrEnd = false
-                    else 
-                        table.insert(final, var[3])
-                        table.insert(final, var[4])
-                        table.insert(final, var[1])
-                        table.insert(final, var[2])
-                        PointOrEnd = true
+            --[[for _, var in ipairs(returned) do
+                for i = 1, #var-2, 2 do  --in case if points are duplicated
+                    if var[i] == var[i+2] and var[i+1] == var[i+3] then
+                        table.remove(var, i)
+                        table.remove(var, i)
                     end
                 end
-                table.insert(returned, final)
-            --end
-        end
+            end]]
 
-        --[[for _, var in ipairs(returned) do
-            for i = 1, #var-2, 2 do  --in case if points are duplicated
-                if var[i] == var[i+2] and var[i+1] == var[i+3] then
-                    table.remove(var, i)
-                    table.remove(var, i)
-                end
+            source:CalcDrawing(returned)
+
+            if start then 
+                update[1] = true
+                start = nil
             end
-        end]]
-
-        source:CalcDrawing(returned)
-
-        if start then 
-            update[1] = true
-            start = nil
         end
     end
 end
@@ -319,6 +347,35 @@ function yellows_rl.Draw()
     for _, source in ipairs(light_sources) do
         source:Draw()
     end
+end
+
+
+
+
+
+
+
+function yellows_rl.CreateSoftCircleLight(x, y, radius, alpha)
+    assert(type(x)=="number", "X should be a number")
+    assert(type(y)=="number", "Y should be a number")
+    assert(type(radius)=="number", "Radius should be a number")
+
+    local source = {}
+    setmetatable(source, {__index = circle_light_soft})
+    source.id = #light_sources
+    source.x = x
+    source.y = y
+    source.radius = radius
+    source.col = shapes.newCircleShape(x, y, radius)
+    source.color = {1, 1, 1, alpha}
+
+    source.shouldupdate = update
+    update[1] = true
+    table.insert(light_sources, source)
+
+    --yellows_rl.UpdateIntersection()
+
+    return source
 end
 
 
